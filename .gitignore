@@ -1,0 +1,27 @@
+# ── .NET / C# ──────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+appsettings.Development.json
+ocpp.db
+ocpp.db-shm
+ocpp.db-wal
+
+# ── Flutter / Dart ──────────────────────
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/pubspec.lock
+**.g.dart
+
+# ── VS Code ─────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+
+# ── General ─────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
