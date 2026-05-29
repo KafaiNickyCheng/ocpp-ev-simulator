@@ -431,7 +431,9 @@ function ProfileTab({ profile, lineUserId, onToast, onLogout }) {
         <div className="card tag-card">
           <div className="tag-info">
             <div className="tag-id mono">{tag.tagId}</div>
-            <span className={`tag-status ${tag.status.toLowerCase()}`}>{tag.status}</span>
+            <span className={`tag-status ${(tag.status ?? 'unknown').toLowerCase()}`}>
+              {tag.status ?? 'Unknown'}
+            </span>
           </div>
           {tag.expiryDate && (
             <div className="tag-expiry">Expires {formatTime(tag.expiryDate)}</div>
