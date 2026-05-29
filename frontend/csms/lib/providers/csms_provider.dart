@@ -19,7 +19,7 @@ class CsmsProvider extends ChangeNotifier {
   CsmsConnectionState get connectionState => _connectionState;
   bool get isConnected => _connectionState == CsmsConnectionState.connected;
 
-  String _serverUrl = 'http://localhost:5000';
+  String _serverUrl = 'https://ocpp-ev-api.up.railway.app';
   String get serverUrl => _serverUrl;
 
   // ─── Charge Points ───────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ class CsmsProvider extends ChangeNotifier {
 
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    _serverUrl = prefs.getString('serverUrl') ?? 'http://localhost:5000';
+    _serverUrl = 'https://ocpp-ev-api.up.railway.app';
     _api.setBaseUrl(_serverUrl);
     notifyListeners();
   }

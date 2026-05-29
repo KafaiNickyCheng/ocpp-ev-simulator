@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 import '../models/csms_models.dart';
 
 class ApiService {
-  String _baseUrl = 'http://localhost:5000';
+  String _baseUrl = 'https://ocpp-ev-api.up.railway.app';
 
   void setBaseUrl(String url) {
     _baseUrl = url.trimRight().replaceAll(RegExp(r'/$'), '');

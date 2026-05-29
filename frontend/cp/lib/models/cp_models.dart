@@ -111,7 +111,7 @@ class CpSettings {
   final double simulatedMaxPowerKw; // max power to simulate per connector
 
   const CpSettings({
-    this.serverUrl           = 'http://localhost:5000',
+    this.serverUrl           = 'https://ocpp-ev-api.up.railway.app',
     this.chargePointId       = 'CP-SIM-001',
     this.vendor              = 'SimCo',
     this.model               = 'SimStation',

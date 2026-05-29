@@ -86,7 +86,7 @@ class CpProvider extends ChangeNotifier {
     final p = await SharedPreferences.getInstance();
 
     // ── Step 1: simulator-only settings (never stored on backend) ──────────
-    final serverUrl             = p.getString('cp_serverUrl')           ?? 'http://localhost:5000';
+    final serverUrl             = 'https://ocpp-ev-api.up.railway.app';
     final chargePointId         = p.getString('cp_chargePointId')       ?? 'CP-SIM-001';
     final heartbeatIntervalSec  = p.getInt('cp_heartbeatInterval')      ?? 30;
     final meterValueIntervalSec = p.getInt('cp_meterValueInterval')     ?? 15;
