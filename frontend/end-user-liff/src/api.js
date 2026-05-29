@@ -43,7 +43,7 @@ export const remoteStop = (chargePointId, transactionId) =>
 
 // ── IdTag Management ───────────────────────────────────────────
 export const getMyTag = (lineUserId) =>
-  request('GET', `/api/tags/by-line/${lineUserId}`)                // ← changed
+  request('GET', `/api/tags/by-line/${lineUserId}`)
 
 export const createTag = (lineUserId, displayName) =>
   request('POST', '/api/tags/line', { lineUserId, displayName })
