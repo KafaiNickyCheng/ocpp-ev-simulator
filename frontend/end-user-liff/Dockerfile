@@ -2,6 +2,14 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Declare build args
+ARG VITE_LIFF_ID
+ARG VITE_BACKEND_URL
+
+# Make them available to Vite during build
+ENV VITE_LIFF_ID=$VITE_LIFF_ID
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+
 COPY frontend/end-user-liff/package*.json .
 RUN npm install
 
