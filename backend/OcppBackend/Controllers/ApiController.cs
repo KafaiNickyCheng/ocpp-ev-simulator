@@ -388,7 +388,17 @@ public class ApiController : ControllerBase
     {
         var tag = await _db.IdTags.FirstOrDefaultAsync(t => t.LineUserId == lineUserId);
         if (tag == null) return NotFound();
-        return Ok(tag);
+
+        return Ok(new
+        {
+            tag.Id,
+            tag.TagId,
+            tag.LineUserId,
+            tag.UserName,
+            tag.ExpiryDate,
+            tag.CreatedAt,
+            Status = tag.Status.ToString(),   // ← explicitly convert to string
+        });
     }
 
     /// <summary>Create tag — auto-generates TagId if not provided (for LINE users).</summary>
