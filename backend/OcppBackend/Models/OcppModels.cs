@@ -99,6 +99,7 @@ public class IdTag
     public string TagId { get; set; } = "";            // RFID tag string
     public string? UserId { get; set; }                // linked user (optional)
     public string? UserName { get; set; }
+    public string? LineUserId { get; set; }
     public AuthorizationStatus Status { get; set; } = AuthorizationStatus.Accepted;
     public DateTime? ExpiryDate { get; set; }
     public string? ParentTagId { get; set; }

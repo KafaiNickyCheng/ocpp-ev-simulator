@@ -21,6 +21,15 @@ ocpp.db-wal
 .vscode/settings.json
 .vscode/launch.json
 
+# ── React / Node ─────────────────────────
+node_modules/
+dist/
+
+# ── Environment variables ─────────────────
+.env
+.env.local
+.env.*.local
+
 # ── General ─────────────────────────────
 .DS_Store
 Thumbs.db

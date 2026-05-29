@@ -45,7 +45,7 @@ builder.Services.AddCors(opts =>
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials()
-            .SetIsOriginAllowed(_ => true); // tighten for production
+            .SetIsOriginAllowed(_ => true); // fine for now — tighten once you know your URLs
     });
 });
 
@@ -55,11 +55,8 @@ Console.WriteLine(app.Environment.EnvironmentName);
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors();
 
@@ -76,8 +73,6 @@ app.MapHub<OcppHub>("/ocpp");
 // ─── DB Init ──────────────────────────────────────────────────────────────────
 await DbInitializer.InitializeAsync(app.Services);
 
-app.Logger.LogInformation("OCPP Backend started.");
-app.Logger.LogInformation("SignalR Hub:  ws://localhost:5000/ocpp");
-app.Logger.LogInformation("Swagger UI:   http://localhost:5000/swagger");
+app.Logger.LogInformation("OCPP Backend started in {Env}", app.Environment.EnvironmentName);
 
 app.Run();

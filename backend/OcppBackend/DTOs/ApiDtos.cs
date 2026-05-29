@@ -7,6 +7,7 @@ public record CreateIdTagRequest(
     string TagId,
     string? UserName,
     string? UserId,
+    string? LineUserId,
     string? Note,
     DateTime? ExpiryDate
 );
@@ -25,6 +26,10 @@ public record UpdateChargePointRequest(
     string? FirmwareVersion,
     int? ConnectorCount
 );
+
+public record RemoteStartRequest(string IdTag, int ConnectorId);
+public record RemoteStopRequest(int TransactionId);
+public record CreateLineTagRequest(string LineUserId, string? DisplayName);
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
 

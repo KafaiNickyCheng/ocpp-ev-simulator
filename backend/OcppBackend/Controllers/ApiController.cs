@@ -318,4 +318,175 @@ public class ApiController : ControllerBase
         Timestamp = DateTime.UtcNow,
         Service = "OCPP 1.6 Backend"
     });
+
+
+    // ─── Remote Commands (for LIFF / End User app) ───────────────────────────────
+    private static string BuildRemoteStart(string idTag, int connectorId)
+    {
+        var frame = new object[]
+        {
+            2, Guid.NewGuid().ToString(), "RemoteStartTransaction",
+            new { idTag, connectorId }
+        };
+        return System.Text.Json.JsonSerializer.Serialize(frame,
+            new System.Text.Json.JsonSerializerOptions
+            { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+    }
+
+    private static string BuildRemoteStop(int transactionId)
+    {
+        var frame = new object[]
+        {
+            2, Guid.NewGuid().ToString(), "RemoteStopTransaction",
+            new { transactionId }
+        };
+        return System.Text.Json.JsonSerializer.Serialize(frame,
+            new System.Text.Json.JsonSerializerOptions
+            { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+    }
+
+    /// <summary>Trigger RemoteStart for a specific connector.</summary>
+    [HttpPost("chargepoints/{cpId}/remote-start")]
+    public async Task<IActionResult> RemoteStart(string cpId, [FromBody] RemoteStartRequest req)
+    {
+        var cp = await _db.ChargePoints.FirstOrDefaultAsync(c => c.ChargePointId == cpId);
+        if (cp == null) return NotFound(new { Error = "ChargePoint not found" });
+        if (!cp.IsOnline) return BadRequest(new { Error = "ChargePoint is offline" });
+
+        var tag = await _db.IdTags.FirstOrDefaultAsync(t => t.TagId == req.IdTag);
+        if (tag == null || tag.Status != AuthorizationStatus.Accepted)
+            return BadRequest(new { Error = "IdTag not authorized" });
+
+        await _hub.Clients
+            .Group($"CP:{cpId}")
+            .SendAsync("OcppCommand", BuildRemoteStart(req.IdTag, req.ConnectorId));
+
+        return Ok(new { Status = "Sent", ChargePointId = cpId, req.ConnectorId, req.IdTag });
+    }
+
+    /// <summary>Trigger RemoteStop for an active transaction.</summary>
+    [HttpPost("chargepoints/{cpId}/remote-stop")]
+    public async Task<IActionResult> RemoteStop(string cpId, [FromBody] RemoteStopRequest req)
+    {
+        var tx = await _db.Transactions
+            .FirstOrDefaultAsync(t => t.TransactionId == req.TransactionId
+                                && t.Status == TransactionStatus.Active);
+
+        if (tx == null) return NotFound(new { Error = "Active transaction not found" });
+
+        await _hub.Clients.Group($"CP:{cpId}")
+            .SendAsync("OcppCommand", BuildRemoteStop(req.TransactionId));
+
+        return Ok(new { Status = "Sent", req.TransactionId });
+    }
+
+    // ─── Tags — LINE user endpoints ───────────────────────────────────────────────
+
+    /// <summary>Get tag by lineUserId (used by LIFF app on load).</summary>
+    [HttpGet("tags/by-line/{lineUserId}")]
+    public async Task<IActionResult> GetTagByLineUser(string lineUserId)
+    {
+        var tag = await _db.IdTags.FirstOrDefaultAsync(t => t.LineUserId == lineUserId);
+        if (tag == null) return NotFound();
+        return Ok(tag);
+    }
+
+    /// <summary>Create tag — auto-generates TagId if not provided (for LINE users).</summary>
+    // Override the existing POST /api/tags to support LineUserId + auto TagId
+    [HttpPost("tags/line")]
+    public async Task<IActionResult> CreateLineTag([FromBody] CreateLineTagRequest req)
+    {
+        // Check if this LINE user already has a tag
+        if (await _db.IdTags.AnyAsync(t => t.LineUserId == req.LineUserId))
+            return Conflict(new { Error = "Tag already exists for this LINE user" });
+
+        // Auto-generate a short unique TagId (LINE-XXXXXXXX format)
+        var tagId = $"LINE-{Guid.NewGuid().ToString("N")[..8].ToUpper()}";
+
+        var tag = new IdTag
+        {
+            TagId      = tagId,
+            LineUserId = req.LineUserId,
+            UserName   = req.DisplayName,
+            Status     = AuthorizationStatus.Accepted,
+            CreatedAt  = DateTime.UtcNow
+        };
+
+        _db.IdTags.Add(tag);
+        await _db.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetTag), new { tagId = tag.TagId }, tag);
+    }
+
+    // ─── Transactions — LINE user endpoints ──────────────────────────────────────
+
+    /// <summary>Get transaction history for a LINE user.</summary>
+    [HttpGet("transactions/by-line/{lineUserId}")]
+    public async Task<IActionResult> GetTransactionsByLineUser(
+        string lineUserId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var tag = await _db.IdTags.FirstOrDefaultAsync(t => t.LineUserId == lineUserId);
+        if (tag == null) return Ok(new List<object>());
+
+        var query = _db.Transactions
+            .Include(t => t.ChargePoint)
+            .Where(t => t.IdTag == tag.TagId)
+            .OrderByDescending(t => t.StartTime);
+
+        var total = await query.CountAsync();
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(t => new
+            {
+                t.Id,
+                t.TransactionId,
+                ChargePointId = t.ChargePoint.ChargePointId,
+                t.ConnectorNumber,
+                t.IdTag,
+                t.StartTime,
+                t.StopTime,
+                t.MeterStart,
+                t.MeterStop,
+                t.EnergyDeliveredKwh,
+                Status = t.Status.ToString(),
+                t.StopReason
+            })
+            .ToListAsync();
+
+        return Ok(new PagedResult<object>(items, total, page, pageSize));
+    }
+
+    /// <summary>Get active session for a LINE user.</summary>
+    [HttpGet("transactions/active/by-line/{lineUserId}")]
+    public async Task<IActionResult> GetActiveTransactionByLineUser(string lineUserId)
+    {
+        var tag = await _db.IdTags.FirstOrDefaultAsync(t => t.LineUserId == lineUserId);
+        if (tag == null) return Ok(null);
+
+        var tx = await _db.Transactions
+            .Include(t => t.ChargePoint)
+            .Include(t => t.MeterValues)
+            .Where(t => t.IdTag == tag.TagId && t.Status == TransactionStatus.Active)
+            .FirstOrDefaultAsync();
+
+        if (tx == null) return Ok(null);
+
+        var latest = tx.MeterValues.OrderByDescending(m => m.Timestamp).FirstOrDefault();
+
+        return Ok(new
+        {
+            tx.TransactionId,
+            ChargePointId    = tx.ChargePoint.ChargePointId,
+            tx.ConnectorNumber,
+            tx.IdTag,
+            tx.StartTime,
+            tx.MeterStart,
+            CurrentEnergyWh  = latest?.EnergyWh,
+            PowerW           = latest?.PowerW,
+            VoltageV         = latest?.VoltageV,
+            CurrentA         = latest?.CurrentA
+        });
+    }
 }
