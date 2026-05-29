@@ -349,7 +349,9 @@ function HistoryTab({ lineUserId }) {
                   ? `${tx.energyDeliveredKwh.toFixed(2)} kWh`
                   : '—'}
               </div>
-              <span className={`tx-status-badge ${tx.status.toLowerCase()}`}>{tx.status}</span>
+              <span className={`tx-status-badge ${(tx.status ?? 'unknown').toLowerCase()}`}>
+                {tx.status ?? 'Unknown'}
+              </span>
             </div>
           </div>
         </div>
