@@ -320,7 +320,7 @@ function HistoryTab({ lineUserId }) {
 
   useEffect(() => {
     api.getMyTransactions(lineUserId)
-      .then(data => setTxs(data || []))
+      .then(data => setTxs(data?.items || []))
       .catch(() => setTxs([]))
       .finally(() => setLoading(false))
   }, [lineUserId])
