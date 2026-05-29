@@ -4,18 +4,25 @@ import liff from '@line/liff'
 
 const LIFF_ID = import.meta.env.VITE_LIFF_ID || 'YOUR_LIFF_ID_HERE'
 
+// Prevent re-login from firing more than once per page load
+let loginRedirecting = false
+
 function isTokenValid() {
   try {
     const token = liff.getAccessToken()
     if (!token) return false
-
-    // JWT payload is the second segment
     const payload = JSON.parse(atob(token.split('.')[1]))
-    // Give 60s buffer before actual expiry
     return payload.exp * 1000 > Date.now() + 60_000
   } catch {
     return false
   }
+}
+
+function forceRelogin() {
+  if (loginRedirecting) return  // ← guard: only redirect once
+  loginRedirecting = true
+  liff.logout()
+  liff.login()
 }
 
 export function useLiff() {
@@ -36,38 +43,33 @@ export function useLiff() {
       .then(async () => {
         const loggedIn = liff.isLoggedIn()
 
-        // ── Not logged in → redirect to LINE login immediately
         if (!loggedIn) {
-          liff.login()
+          // Not logged in at all — just show login screen, don't auto-redirect
+          setState({ ready: true, loggedIn: false, profile: null, error: null, isInClient: liff.isInClient() })
           return
         }
 
-        // ── Logged in but token is stale → force re-login
+        // Logged in but token is stale → force fresh login (only once)
         if (!isTokenValid()) {
-          console.warn('LIFF token invalid or expired — forcing re-login')
-          liff.logout()
-          liff.login()
+          console.warn('LIFF token stale — re-login')
+          forceRelogin()
           return
         }
 
-        // ── Token is valid → fetch profile
+        // Fetch profile
         let profile = null
         try {
           profile = await liff.getProfile()
         } catch (e) {
-          console.warn('Could not fetch profile:', e)
-          // Profile fetch failed even with valid token
-          // Force re-login rather than proceeding with null profile
-          liff.logout()
-          liff.login()
+          console.warn('Profile fetch failed:', e)
+          forceRelogin()
           return
         }
 
-        // ── Sanity check: we must have a userId
+        // Must have userId
         if (!profile?.userId) {
-          console.warn('Profile missing userId — forcing re-login')
-          liff.logout()
-          liff.login()
+          console.warn('No userId in profile — re-login')
+          forceRelogin()
           return
         }
 
@@ -80,20 +82,14 @@ export function useLiff() {
         })
       })
       .catch((err) => {
-        console.error('LIFF init failed:', err)
+        console.error('LIFF init error:', err)
         setState((s) => ({ ...s, ready: true, error: err.message }))
       })
   }, [])
 
-  const login = () => liff.login()
-
-  const logout = () => {
-    liff.logout()
-    window.location.reload()
-  }
-
-  const close = () => liff.isInClient() && liff.closeWindow()
-
+  const login  = () => liff.login()
+  const logout = () => { liff.logout(); window.location.reload() }
+  const close  = () => liff.isInClient() && liff.closeWindow()
   const sendMessage = (text) =>
     liff.sendMessages([{ type: 'text', text }]).catch(console.error)
 
